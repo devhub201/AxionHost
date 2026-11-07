@@ -1,0 +1,172 @@
+{
+ "minecraft": {
+  "name": "Minecraft",
+  "plans": [
+   {
+    "name": "Dirt",
+    "price": 99,
+    "features": [
+     "2 GB RAM",
+     "10 GB NVMe",
+     "15 slots",
+     "Daily backups"
+    ]
+   },
+   {
+    "name": "Wood",
+    "price": 199,
+    "features": [
+     "4 GB RAM",
+     "20 GB NVMe",
+     "40 slots",
+     "Daily backups",
+     "Free subdomain"
+    ]
+   },
+   {
+    "name": "Iron",
+    "price": 349,
+    "features": [
+     "6 GB RAM",
+     "40 GB NVMe",
+     "80 slots",
+     "Priority CPU",
+     "Free subdomain"
+    ]
+   },
+   {
+    "name": "Diamond",
+    "price": 599,
+    "features": [
+     "12 GB RAM",
+     "80 GB NVMe",
+     "Unlimited slots",
+     "Dedicated threads",
+     "Priority support"
+    ]
+   }
+  ]
+ },
+ "rust": {
+  "name": "Rust",
+  "plans": [
+   {
+    "name": "Scrap",
+    "price": 399,
+    "features": [
+     "50 players",
+     "8 GB RAM",
+     "30 GB NVMe",
+     "Oxide / Carbon"
+    ]
+   },
+   {
+    "name": "Raider",
+    "price": 699,
+    "features": [
+     "100 players",
+     "12 GB RAM",
+     "50 GB NVMe",
+     "Oxide / Carbon",
+     "Auto wipe"
+    ]
+   },
+   {
+    "name": "Warlord",
+    "price": 1099,
+    "features": [
+     "200 players",
+     "20 GB RAM",
+     "80 GB NVMe",
+     "Dedicated threads",
+     "Priority support"
+    ]
+   }
+  ]
+ },
+ "vps": {
+  "name": "VPS",
+  "plans": [
+   {
+    "name": "Nano",
+    "price": 149,
+    "features": [
+     "2 vCPU",
+     "4 GB RAM",
+     "50 GB NVMe",
+     "Full root"
+    ]
+   },
+   {
+    "name": "Mini",
+    "price": 299,
+    "features": [
+     "3 vCPU",
+     "8 GB RAM",
+     "100 GB NVMe",
+     "Full root",
+     "Snapshots"
+    ]
+   },
+   {
+    "name": "Pro",
+    "price": 549,
+    "features": [
+     "6 vCPU",
+     "16 GB RAM",
+     "200 GB NVMe",
+     "Full root",
+     "Snapshots"
+    ]
+   },
+   {
+    "name": "Ultra",
+    "price": 999,
+    "features": [
+     "10 vCPU",
+     "32 GB RAM",
+     "400 GB NVMe",
+     "Priority network",
+     "Priority support"
+    ]
+   }
+  ]
+ },
+ "bots": {
+  "name": "Bots",
+  "plans": [
+   {
+    "name": "Spark",
+    "price": 49,
+    "features": [
+     "256 MB RAM",
+     "1 GB storage",
+     "1 bot",
+     "Auto restart"
+    ]
+   },
+   {
+    "name": "Flame",
+    "price": 99,
+    "features": [
+     "512 MB RAM",
+     "3 GB storage",
+     "3 bots",
+     "Auto restart",
+     "Live logs"
+    ]
+   },
+   {
+    "name": "Blaze",
+    "price": 199,
+    "features": [
+     "1 GB RAM",
+     "10 GB storage",
+     "Unlimited bots",
+     "Git deploy",
+     "Priority support"
+    ]
+   }
+  ]
+ }
+}
