@@ -23,7 +23,7 @@ Open `/login.html`, sign in as the admin, then **Admin → Integrations**:
 
 | Card | What to enter | Used for |
 |---|---|---|
-| **SMTP** | host / port / user / app-password / from | verify email, order confirmed, credentials, renewals |
+| **SMTP** | just your email + its app password / SMTP key (any email, incl. your own domain — mail server is auto-detected via MX lookup and tried on ports 587/465; Advanced for manual host) | verify email, order confirmed, credentials, renewals |
 | **Paid game panel** | URL, Application API key, Client API key, node/egg IDs | paid Minecraft / Rust / Bots servers |
 | **Free Minecraft panel** | same, separate node + 4 GB limits | free 4 GB servers |
 | **VPS node (SSH / SSHX)** | host, SSH key, provision command | paid + free VPS. SSHX mode also emails a web-terminal link |

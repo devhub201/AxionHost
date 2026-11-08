@@ -103,6 +103,29 @@ class T(unittest.TestCase):
         c, r = self.j("get", "/api/admin/settings", tok=self.adm); self.assertEqual(r["settings"]["smtp"]["password"], "••••••••"); self.assertNotIn("KEY123", json.dumps(r))
         self.j("put", "/api/admin/settings", {"smtp": {"password": "••••••••", "host": "127.0.0.1"}}, self.adm); self.assertEqual(db.load()["settings"]["smtp"]["password"], "pw")  # mask keeps secret
         self.j("put", "/api/admin/settings", {"smtp": {"password": "wrong"}}, self.adm); c, r = self.j("post", "/api/admin/test/smtp", {}, self.adm); self.assertEqual(c, 502); self.assertIn("login failed", r["error"])
+    def test_smtp_email_and_key_only(self):
+        import mailer
+        c = mailer.resolve({"host": "", "user": "me@gmail.com", "password": "k", "port": 587, "security": "starttls", "from_email": ""})
+        self.assertEqual((c["host"], c["port"], c["security"], c["from_email"]), ("smtp.gmail.com", 587, "starttls", "me@gmail.com"))
+        orig = mailer.mx_hosts
+        try:
+            mailer.mx_hosts = lambda d: ["aspmx.l.google.com"]; self.assertEqual(mailer.candidates({"user": "info@mybrand.com"})[0], ("smtp.gmail.com", 587, "starttls"))   # Google Workspace custom domain
+            mailer.mx_hosts = lambda d: ["mx.zoho.in"]; self.assertEqual(mailer.candidates({"user": "a@brand.in"})[0][0], "smtp.zoho.in")
+            mailer.mx_hosts = lambda d: []; self.assertEqual(mailer.candidates({"user": "a@mybrand.com"})[0][0], "smtp.mybrand.com")
+        finally: mailer.mx_hosts = orig
+    def test_smtp_autodiscovery_custom_domain(self):
+        import mailer
+        s = db.load()["settings"]["smtp"]; s.update(host="", user="user", password="pw")   # email-only config, no host
+        port = self.smtp.server_address[1]; orig = mailer.candidates
+        try:
+            mailer.candidates = lambda c: [("127.0.0.1", 1, "starttls"), ("127.0.0.1", port, "none")]   # first guess is dead, second works
+            c, r = self.j("post", "/api/admin/test/smtp", {"to": "me@x.io"}, self.adm); self.assertEqual(c, 200, r)
+            self.assertEqual(db.load()["settings"]["smtp"]["port"], port)   # remembered
+            mailer.candidates = lambda c: [("127.0.0.1", 1, "starttls")]; s.update(host="", port=587)
+            c, r = self.j("post", "/api/admin/test/smtp", {}, self.adm); self.assertEqual(c, 502); self.assertIn("auto-detect", r["error"])
+            mailer.candidates = lambda c: [("127.0.0.1", port, "none")]; s.update(host="", password="WRONG")
+            c, r = self.j("post", "/api/admin/test/smtp", {}, self.adm); self.assertEqual(c, 502); self.assertIn("login failed", r["error"])   # stops guessing on bad credentials
+        finally: mailer.candidates = orig
     def test_admin_only(self):
         t = self.signup(); 
         for m, u in [("get", "/api/admin/settings"), ("get", "/api/admin/emaillog"), ("post", "/api/admin/test/smtp"), ("get", "/api/admin/users")]: self.assertEqual(self.j(m, u, tok=t)[0], 403, u)

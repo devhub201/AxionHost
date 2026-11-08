@@ -292,7 +292,7 @@ def a_test(what):
     st = settings(); j = request.get_json(silent=True) or {}
     try:
         if what == "smtp":
-            mailer.test_connection(st["smtp"]); msg = "SMTP login OK"
+            mailer.test_connection(st["smtp"]); u = st["smtp"]; msg = "SMTP login OK" + (f" via {u['host']}:{u['port']}" if u.get("host") else "")
             to = (j.get("to") or "").strip()
             if to:
                 r = mailer.send(to, "welcome", {"name": "there"}, raw=("Test email from " + st["site"]["name"], "SMTP is working.", "<p>✅ SMTP is working. This is a test email.</p>"))
