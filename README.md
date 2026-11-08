@@ -32,6 +32,11 @@ Each card has **Test connection** (real SMTP login + optional test mail, real pa
 Customers never see the game panel — they use `mc-panel.html`; the backend talks to the panel with your admin key.
 Set `site.url` (Admin → Settings / `db.json`) to your public https URL so email links work.
 
+### no-reply@ sender
+`no-reply@yourdomain.com` is just the **From** label — you still log in with a real mailbox or a mail service.
+Set it under *Show as sender*, and put a real inbox in *Replies go to*. For it to land in inboxes (not spam) add SPF + DKIM (+ DMARC) DNS records for your domain
+(your mail provider shows them). Gmail rewrites From to the login address unless you add the alias in Gmail settings — use Zoho/your-domain mailbox or Brevo/Resend/SES for a true no-reply.
+
 ## Emails (Admin → Emails)
 13 templates: verify email, welcome, password reset, order confirmed, payment received, paid service ready (credentials),
 free VPS ready, free Minecraft ready, renewal reminder, free plan expiring, service suspended, ticket reply, new order (admins).

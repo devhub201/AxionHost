@@ -91,6 +91,7 @@ def send(to, key, vars, raw=None):
         _log(to, key, subject, "skipped", "SMTP not configured/enabled"); return {"ok": False, "error": "SMTP not configured"}
     msg = EmailMessage(); msg["Subject"] = subject; msg["To"] = to
     msg["From"] = formataddr((c.get("from_name") or "AxionHost", c.get("from_email") or c.get("user"))); msg["Message-ID"] = make_msgid()
+    if c.get("reply_to"): msg["Reply-To"] = c["reply_to"]
     msg.set_content(text); msg.add_alternative(h, subtype="html")
     try:
         s = _connect(c); s.send_message(msg); s.quit()

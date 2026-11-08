@@ -7,7 +7,7 @@ import db, app as A
 import email, email.policy
 def decode(raw):
     m = email.message_from_string(raw, policy=email.policy.default)
-    parts = [m["Subject"] or ""] + [p.get_content() for p in m.walk() if p.get_content_type() in ("text/plain", "text/html")]
+    parts = [m["Subject"] or "", "Reply-To: " + str(m["Reply-To"] or ""), "From: " + str(m["From"] or "")] + [p.get_content() for p in m.walk() if p.get_content_type() in ("text/plain", "text/html")]
     return "\n".join(parts)
 # ---- local SMTP sink with AUTH (user/pw) ----
 MAILS = []
@@ -126,6 +126,10 @@ class T(unittest.TestCase):
             mailer.candidates = lambda c: [("127.0.0.1", port, "none")]; s.update(host="", password="WRONG")
             c, r = self.j("post", "/api/admin/test/smtp", {}, self.adm); self.assertEqual(c, 502); self.assertIn("login failed", r["error"])   # stops guessing on bad credentials
         finally: mailer.candidates = orig
+    def test_from_noreply_and_reply_to(self):
+        s = db.load()["settings"]["smtp"]; s.update(from_email="no-reply@axion.test", reply_to="support@axion.test", from_name="AxionHost")
+        self.j("post", "/api/auth/register", {"name": "Rahul S", "email": "nr@x.io", "password": "password123"})
+        d = MAILS[-1]["data"]; self.assertIn("from:<no-reply@axion.test>", MAILS[-1]["from"].lower()); self.assertIn("Reply-To: support@axion.test", d); self.assertIn("From: AxionHost <no-reply@axion.test>", d)
     def test_admin_only(self):
         t = self.signup(); 
         for m, u in [("get", "/api/admin/settings"), ("get", "/api/admin/emaillog"), ("post", "/api/admin/test/smtp"), ("get", "/api/admin/users")]: self.assertEqual(self.j(m, u, tok=t)[0], 403, u)

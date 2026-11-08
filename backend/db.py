@@ -6,7 +6,7 @@ PATH = lambda: os.path.join(DATA_DIR, "db.json")
 
 DEFAULT_SETTINGS = {
   "site": {"name": "AxionHost", "url": "http://localhost:8080", "support_email": "support@axionhost.net", "discord": ""},
-  "smtp": {"host": "", "port": 587, "security": "starttls", "user": "", "password": "", "from_name": "AxionHost", "from_email": "", "enabled": False},
+  "smtp": {"host": "", "port": 587, "security": "starttls", "user": "", "password": "", "from_name": "AxionHost", "from_email": "", "reply_to": "", "enabled": False},
   "paid_panel": {"url": "", "api_key": "", "client_key": "", "node_id": 1, "egg_id": 1, "docker_image": "ghcr.io/pterodactyl/yolks:java_21", "startup": "java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar server.jar", "enabled": False},
   "free_panel": {"url": "", "api_key": "", "client_key": "", "node_id": 1, "egg_id": 1, "docker_image": "ghcr.io/pterodactyl/yolks:java_21", "startup": "java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar server.jar", "ram_mb": 4096, "disk_mb": 20480, "cpu_percent": 200, "enabled": False},
   "vps": {"mode": "ssh", "host": "", "port": 22, "user": "root", "private_key": "", "ssh_bin": "ssh",
