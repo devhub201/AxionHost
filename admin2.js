@@ -67,3 +67,30 @@ PG["a-deliveries"]={title:"Deliveries",sub:"Approve paid orders and send custome
     $("#ds").onclick=async()=>{const body={ip:$("#d1").value,port:+$("#d2").value,username:$("#d3").value,password:$("#d4").value,web_url:$("#d5").value,notes:$("#d6").value};if(!body.ip.trim())return toast("Enter the IP or hostname","var(--bad)");if(!live){m.classList.remove("on");toast("Demo: email would be sent to the customer","var(--ok)");return}
      $("#ds").disabled=true;const r=await Net.post("/admin/services/"+b.dataset.dl+"/deliver",body);$("#ds").disabled=false;if(!r.ok)return toast(r.data.error||"Failed","var(--bad)");m.classList.remove("on");toast(r.data.emailed?"Delivered — email sent ✓":"Saved, but email failed: "+r.data.error,r.data.emailed?"var(--ok)":"var(--warn)");draw()}}))}
   $("#rf").onclick=draw;draw()}};
+
+/* ===== Capacity & overcommit ===== */
+PG["a-capacity"]={title:"Capacity",sub:"Allotted (what customers see) vs real host usage — safe overcommit control.",actions:()=>`<button class="btn" id="rf">↻ Refresh</button>`,html:()=>`<div id="cp">${skel(3,140)}</div>`,
+ mount(){const NODE={name:"prod-node-01",ram:2048,cpu:256,disk:8000};const mk=(i)=>{const al=[128,64,32,16,8,4][i%6],g=Math.max(1,al/4),use=+(al*(.02+((i*37)%23)/230)).toFixed(1);return{id:"vps-"+(1000+i),name:"vps-"+(1000+i),email:"user"+i+"@mail.com",al,g,use}};
+  let V=Array.from({length:100},(_,i)=>mk(i));let pol=JSON.parse(localStorage.getItem("axpol")||'{"max":4,"guar":25,"cap":100}');
+  const f=n=>(+n).toFixed(n>=100?0:1);
+  function draw(){const al=V.reduce((a,v)=>a+v.al,0),gu=V.reduce((a,v)=>a+v.g,0),us=V.reduce((a,v)=>a+v.use,0),ratio=al/NODE.ram,pct=us/NODE.ram*100,ok=ratio<=pol.max,hot=pct>80;
+   const bar=(p,c)=>`<div style="height:10px;border-radius:9px;background:rgba(255,255,255,.07);overflow:hidden"><i style="display:block;height:100%;width:${Math.min(100,p)}%;background:${c};border-radius:9px"></i></div>`;
+   const top=[...V].sort((a,b)=>b.use-a.use).slice(0,8);
+   $("#cp").innerHTML=`<div class="grid4" style="margin-bottom:16px">${kpi("Allotted to customers",f(al)+" GB",V.length+" VPS",1,null)}${kpi("Physical host RAM",NODE.ram+" GB",NODE.name,0,null)}${kpi("Real usage now",f(us)+" GB",f(pct)+"% of host",pct<60?1:0,null)}${kpi("Overcommit ratio",f(ratio)+"×","limit "+pol.max+"×",ok?1:0,null)}</div>
+   <div class="card" style="margin-bottom:16px"><div class="ch"><div><h3>Allotted vs Real</h3><small>Customers see the allotted number; the host only spends what they actually use.</small></div><span class="badge ${hot?"bad":ok?"ok":"warn"}">${hot?"High load":ok?"Healthy":"Over limit"}</span></div>
+    <p class="mut" style="margin:10px 0 6px">Allotted ${f(al)} GB</p>${bar(100,"linear-gradient(90deg,#fbbf24,#f472b6)")}
+    <p class="mut" style="margin:12px 0 6px">Guaranteed (reserved) ${f(gu)} GB — ${f(gu/NODE.ram*100)}% of host</p>${bar(gu/NODE.ram*100,"#34d399")}
+    <p class="mut" style="margin:12px 0 6px">Real usage ${f(us)} GB — ${f(pct)}% of host</p>${bar(pct,hot?"#f87171":"#38bdf8")}</div>
+   <div class="grid2" style="margin-bottom:16px"><div class="card"><div class="ch"><div><h3>Overcommit policy</h3><small>Applied to every new VPS on this node.</small></div></div>
+    <label class="mut">Max overcommit (× physical RAM)</label><input style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line,rgba(255,255,255,.15));background:rgba(255,255,255,.06);color:inherit;margin-top:4px" id="pm" type="number" min="1" max="10" step=".5" value="${pol.max}">
+    <label class="mut" style="margin-top:10px;display:block">Guaranteed RAM per VPS (% of allotted)</label><input style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line,rgba(255,255,255,.15));background:rgba(255,255,255,.06);color:inherit;margin-top:4px" id="pg" type="number" min="5" max="100" value="${pol.guar}">
+    <label class="mut" style="margin-top:10px;display:block">Burst CPU cap (% of allotted vCPU)</label><input style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line,rgba(255,255,255,.15));background:rgba(255,255,255,.06);color:inherit;margin-top:4px" id="pc" type="number" min="25" max="100" value="${pol.cap}">
+    <button class="btn p" id="ps" style="margin-top:14px">Save policy</button>
+    <p class="mut" style="margin-top:10px;font-size:.85em">Applied as Docker/LXC <code>memory</code> limit = allotted, <code>memory-reservation</code> = guaranteed, CPU shares by plan. Enable swap/zram on the host as a safety net.</p></div>
+   <div class="card"><div class="ch"><h3>Capacity check</h3></div><p class="mut" style="margin-top:8px">New 128 GB VPS would make ratio <b>${f((al+128)/NODE.ram)}×</b> — ${(al+128)/NODE.ram<=pol.max?"✅ allowed":"⛔ blocked by policy"}.</p>
+    <p class="mut">Rule of thumb: keep real usage under 70%; if it crosses 80% stop selling on this node and add another.</p>
+    <p class="mut">Noisy VPS (&gt;60% of its allotment for long) are listed below — throttle or move them.</p></div></div>
+   <div class="card"><div class="ch"><h3>Top real RAM users</h3></div>${top.map(v=>`<div class="li"><div class="grow"><b>${v.name}</b><br><small class="mut">${v.email}</small></div><div style="min-width:170px">${bar(v.use/v.al*100,v.use/v.al>.6?"#f87171":"#fbbf24")}<small class="mut">${f(v.use)} / ${v.al} GB used</small></div><button class="btn sm" data-th="${v.id}">Throttle</button></div>`).join("")}</div>`;
+   $("#ps").onclick=()=>{pol={max:+$("#pm").value||4,guar:+$("#pg").value||25,cap:+$("#pc").value||100};try{localStorage.setItem("axpol",JSON.stringify(pol))}catch(e){}toast("Policy saved","var(--ok)");draw()};
+   $$("[data-th]").forEach(b=>b.onclick=()=>toast("Throttle applied to "+b.dataset.th+" (demo)","var(--ok)"));}
+  draw();$("#rf").onclick=()=>{V=V.map(v=>({...v,use:+(v.al*(.02+Math.random()*.12)).toFixed(1)}));draw()}}};
