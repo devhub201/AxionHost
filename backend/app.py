@@ -190,7 +190,7 @@ def provision(s, u):
             r = ig.panel_create_server(cfg, u["email"], u["name"], s["name"], ram, disk, cpu)
             s["address"] = f"{s['name']}.{re.sub(r'^https?://', '', site_url()).split(':')[0]}" if st["site"]["url"].startswith("http") and "localhost" not in st["site"]["url"] else f"{r['ip']}:{r['port']}"
             s["meta"] = {"remote_id": r["remote_id"], "identifier": r["identifier"], "ip": r["ip"], "port": r["port"]}; secret_pw = ""
-        s["status"] = "online"; db.save()
+        s["status"] = "online"; s["meta"]["delivered_at"] = db.now(); s["meta"]["delivered_by"] = "auto"; db.save()
     except ig.IntegrationError as e:
         s["status"] = "pending-setup"; s["meta"]["error"] = str(e); db.save()
         notify(u["id"], "Server is being set up", "Our team will finish your setup shortly.")
@@ -373,9 +373,34 @@ def a_reprov(sid):
     if not s: return err("Not found", 404)
     u = find("users", s["uid"]); ok, msg = provision(s, u); return jsonify({"ok": ok, "message": msg, "service": s}), (200 if ok else 502)
 
+@app.post("/api/admin/services/<sid>/deliver")
+@auth(admin=True)
+def a_deliver(sid):
+    """Manual delivery: admin types the access details (e.g. VPS made by hand) and the customer gets them by email. The password is emailed, never stored."""
+    s = find("services", sid); j = request.get_json(silent=True) or {}
+    if not s: return err("Service not found", 404)
+    u = find("users", s["uid"]); ip_, user = (j.get("ip") or "").strip()[:120], (j.get("username") or "root").strip()[:40]
+    if not re.match(r"^[A-Za-z0-9.\-:]+$", ip_): return err("Enter a valid IP or hostname")
+    if not re.match(r"^[\w.-]+$", user): return err("Enter a valid username")
+    try: port = int(j.get("port") or 22); assert 1 <= port <= 65535
+    except (ValueError, AssertionError): return err("Port must be 1–65535")
+    pw, notes, web = (j.get("password") or "")[:200], (j.get("notes") or "").strip()[:500], (j.get("web_url") or "").strip()[:200]
+    if web and not web.startswith("https://"): return err("Web terminal / panel link must start with https://")
+    cred = f"**IP:** `{ip_}`\n**SSH:** `ssh {user}@{ip_}" + (f" -p {port}" if port != 22 else "") + "`\n" + (f"**Username:** `{user}`\n**Password:** `{pw}`" if pw else "")
+    if web: cred += f"\n**Web access:** {web}"
+    if notes: cred += f"\n\n{notes}"
+    st = settings(); base = {"name": u["name"], "product": s["product"], "plan": s["plan"], "service_name": s["name"], "address": ip_, "credentials": cred, "panel_url": f"{site_url()}/{'vps-panel.html' if s['cat']=='vps' else 'mc-panel.html'}?id={s['id']}", "renew_days": st["free"]["renew_days"]}
+    r = mailer.send(u["email"], "service_ready", base)
+    s["address"] = ip_; s["status"] = "online"; s["meta"].pop("error", None); s["meta"].update(ssh_port=port, delivered_at=db.now(), delivered_by="manual", delivery_email=("sent" if r["ok"] else "failed: " + r.get("error", "")))
+    if web: s["meta"]["sshx_url"] = web
+    db.save(); notify(u["id"], f"{s['product']} is ready 🚀", ip_, "ok")
+    return jsonify({"ok": True, "emailed": r["ok"], "error": r.get("error", ""), "service": s})
+
 @app.get("/api/admin/services")
 @auth(admin=True)
-def a_services(): return jsonify({"ok": True, "items": [s for s in db.load()["services"] if s["status"] != "deleted"]})
+def a_services():
+    em = {u["id"]: u["email"] for u in db.load()["users"]}
+    return jsonify({"ok": True, "items": [{**s, "email": em.get(s["uid"], "?")} for s in db.load()["services"] if s["status"] != "deleted"]})
 
 @app.get("/api/admin/users")
 @auth(admin=True)

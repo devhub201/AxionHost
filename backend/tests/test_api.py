@@ -130,6 +130,14 @@ class T(unittest.TestCase):
         s = db.load()["settings"]["smtp"]; s.update(from_email="no-reply@axion.test", reply_to="support@axion.test", from_name="AxionHost")
         self.j("post", "/api/auth/register", {"name": "Rahul S", "email": "nr@x.io", "password": "password123"})
         d = MAILS[-1]["data"]; self.assertIn("from:<no-reply@axion.test>", MAILS[-1]["from"].lower()); self.assertIn("Reply-To: support@axion.test", d); self.assertIn("From: AxionHost <no-reply@axion.test>", d)
+    def test_manual_vps_delivery_by_email(self):
+        db.load()["settings"]["vps"]["enabled"] = False; t = self.signup(); o = self.j("post", "/api/orders", {"cat": "vps", "plan": "Mini", "cycle": 1}, t)[1]["order"]
+        c, r = self.j("post", f"/api/admin/orders/{o['id']}/approve", tok=self.adm); self.assertFalse(r["provisioned"]); sid = r["service"]["id"]; self.assertEqual(r["service"]["status"], "pending-setup")
+        MAILS.clear(); self.assertEqual(self.j("post", f"/api/admin/services/{sid}/deliver", {"ip": "bad ip;"}, self.adm)[0], 400); self.assertEqual(self.j("post", f"/api/admin/services/{sid}/deliver", {"ip": "1.2.3.4", "web_url": "http://x"}, self.adm)[0], 400)
+        c, r = self.j("post", f"/api/admin/services/{sid}/deliver", {"ip": "198.51.100.7", "port": 2222, "username": "root", "password": "Pa55w0rd!", "notes": "Reboot via panel."}, self.adm); self.assertEqual(c, 200, r); self.assertTrue(r["emailed"])
+        m = MAILS[-1]["data"]; self.assertIn("198.51.100.7", m); self.assertIn("-p 2222", m); self.assertIn("Pa55w0rd!", m); self.assertIn("Reboot via panel.", m); self.assertIn("rahul@x.io", MAILS[-1]["to"])
+        self.assertEqual(A.find("services", sid)["status"], "online"); self.assertNotIn("Pa55w0rd!", json.dumps(db.load()["services"]))   # password not stored
+        self.assertEqual(self.j("post", f"/api/admin/services/{sid}/deliver", {"ip": "1.1.1.1"}, t)[0], 403)
     def test_admin_only(self):
         t = self.signup(); 
         for m, u in [("get", "/api/admin/settings"), ("get", "/api/admin/emaillog"), ("post", "/api/admin/test/smtp"), ("get", "/api/admin/users")]: self.assertEqual(self.j(m, u, tok=t)[0], 403, u)

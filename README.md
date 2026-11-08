@@ -37,6 +37,10 @@ Set `site.url` (Admin → Settings / `db.json`) to your public https URL so emai
 Set it under *Show as sender*, and put a real inbox in *Replies go to*. For it to land in inboxes (not spam) add SPF + DKIM (+ DMARC) DNS records for your domain
 (your mail provider shows them). Gmail rewrites From to the login address unless you add the alias in Gmail settings — use Zoho/your-domain mailbox or Brevo/Resend/SES for a true no-reply.
 
+## VPS delivery (Admin → Deliveries)
+1. Customer orders → you confirm payment → **Approve**. If the VPS node is connected it is created automatically and the customer is emailed IP, SSH command and password.
+2. If not (or you build VPS by hand): **Deliver by email** → type IP / port / username / password (Generate button) / optional web-terminal link / notes → the customer gets a branded email instantly. The password is emailed, never stored; the email log keeps only subjects.
+
 ## Emails (Admin → Emails)
 13 templates: verify email, welcome, password reset, order confirmed, payment received, paid service ready (credentials),
 free VPS ready, free Minecraft ready, renewal reminder, free plan expiring, service suspended, ticket reply, new order (admins).
