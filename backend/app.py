@@ -181,8 +181,11 @@ def provision(s, u):
             cfg = st["vps"]
             if not cfg["enabled"]: raise ig.IntegrationError("VPS node is not connected yet")
             ram, cpu, disk = (cfg["free_ram_gb"], cfg["free_cpu"], cfg["free_disk_gb"]) if s["kind"] == "free-vps" else (s["ram_gb"], max(1, s["ram_gb"] // 2), s["ram_gb"] * 10)
-            r = ig.vps_provision(cfg, s["name"], ram, cpu, disk)
-            s["address"] = r["ip"]; s["meta"] = {"ssh_port": r["port"], "sshx_url": r["sshx_url"], "node_name": r["name"]}; secret_pw = r["password"]
+            node = pick_node(); port = alloc_port(node) if node else 0
+            r = ig.vps_provision(cfg, s["name"], ram, cpu, disk, port)
+            s["address"] = (node["public_ip"] if node else r["ip"]); s["meta"] = {"ssh_port": r["port"], "sshx_url": r["sshx_url"], "node_name": r["name"]}
+            if node: s["meta"].update({"node_id": node["id"], "host_port": r["port"]})
+            secret_pw = r["password"]
         else:
             free = s["kind"] == "free-mc"; cfg = st["free_panel"] if free else st["paid_panel"]
             if not cfg["enabled"]: raise ig.IntegrationError("Game panel is not connected yet")
@@ -255,6 +258,62 @@ def _unsuspend(s):
     try:
         if s["cat"] != "vps" and s["meta"].get("remote_id"): ig.panel_suspend(settings()["free_panel" if s["kind"] == "free-mc" else "paid_panel"], s["meta"]["remote_id"], False)
     except ig.IntegrationError: pass
+
+# ---------- node IPs & ports ----------
+def nodes(): return db.load().setdefault("nodes", [])
+def pick_node():
+    for n in nodes():
+        if n.get("enabled", True) and free_ports(n): return n
+    return None
+def used_ports(n):
+    return {s["meta"].get("host_port") for s in db.load()["services"] if s.get("meta", {}).get("node_id") == n["id"] and s["meta"].get("host_port")} | set(n.get("reserved", []))
+def free_ports(n):
+    u = used_ports(n); return [p for p in range(n["port_start"], n["port_end"] + 1) if p not in u]
+def alloc_port(n):
+    f = free_ports(n)
+    if not f: raise ig.IntegrationError(f"No free ports left on node {n['name']}")
+    return f[0]
+def node_view(n, probe=False):
+    u = used_ports(n); total = n["port_end"] - n["port_start"] + 1
+    v = dict(n, total_ports=total, used_ports=len(u), free_ports=total - len(u), next_port=(free_ports(n) or [None])[0])
+    if probe: v["status"] = ig.node_check(n)
+    return v
+
+@app.get("/api/admin/nodes")
+@auth(admin=True)
+def a_nodes(): return jsonify({"ok": True, "items": [node_view(n, request.args.get("check") == "1") for n in nodes()]})
+
+@app.put("/api/admin/nodes")
+@auth(admin=True)
+def a_nodes_put():
+    items = (request.get_json(silent=True) or {}).get("items")
+    if not isinstance(items, list): return err("items must be a list")
+    out, seen_ip = [], set()
+    for i, n in enumerate(items):
+        try:
+            name = str(n.get("name", "")).strip()[:40]; ip = str(n.get("public_ip", "")).strip()
+            ssh = int(n.get("ssh_port") or 22); ps = int(n.get("port_start")); pe = int(n.get("port_end"))
+        except (TypeError, ValueError): return err(f"Node {i + 1}: ports must be numbers")
+        if not name: return err(f"Node {i + 1}: name required")
+        if not ig.valid_ip(ip): return err(f"Node {name}: '{ip}' is not a valid IP address")
+        if ip in seen_ip: return err(f"Node {name}: IP {ip} is used by another node")
+        if not (1 <= ssh <= 65535 and 1024 <= ps <= 65535 and 1024 <= pe <= 65535): return err(f"Node {name}: ports must be 1024-65535 (SSH 1-65535)")
+        if ps > pe: return err(f"Node {name}: port start must be <= end")
+        if ps <= ssh <= pe: return err(f"Node {name}: SSH port {ssh} is inside the customer port range")
+        extra = [x.strip() for x in n.get("extra_ips", []) if str(x).strip()]
+        bad = [x for x in extra if not ig.valid_ip(x)]
+        if bad: return err(f"Node {name}: invalid extra IP {bad[0]}")
+        seen_ip.add(ip)
+        out.append({"id": n.get("id") or db.nid("NODE"), "name": name, "public_ip": ip, "extra_ips": extra, "ssh_port": ssh, "port_start": ps, "port_end": pe, "reserved": [int(x) for x in n.get("reserved", []) if str(x).isdigit()], "enabled": bool(n.get("enabled", True))})
+    db.load()["nodes"] = out; db.save()
+    return jsonify({"ok": True, "items": [node_view(n) for n in out]})
+
+@app.post("/api/admin/nodes/<nid>/check")
+@auth(admin=True)
+def a_node_check(nid):
+    n = next((x for x in nodes() if x["id"] == nid), None)
+    if not n: return err("Node not found", 404)
+    return jsonify({"ok": True, "status": ig.node_check(n)})
 
 # ---------- admin ----------
 def mask(cfg_all):

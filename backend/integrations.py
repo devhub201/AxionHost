@@ -84,10 +84,10 @@ def vps_test(cfg):
         except IntegrationError: msg += " · ⚠ sshx not found on node"
     return {"message": msg}
 
-def vps_provision(cfg, name, ram_gb, cpu, disk_gb):
+def vps_provision(cfg, name, ram_gb, cpu, disk_gb, port=0):
     name = re.sub(r"[^a-z0-9-]", "", name.lower())[:30] or "vps"
     pw = _alnum(18)
-    cmd = cfg["provision_cmd"].format(name=shlex.quote(name), ram=int(ram_gb), cpu=int(cpu), disk=int(disk_gb), password=shlex.quote(pw))
+    cmd = cfg["provision_cmd"].format(name=shlex.quote(name), ram=int(ram_gb), cpu=int(cpu), disk=int(disk_gb), password=shlex.quote(pw), port=int(port or 0))
     out = _ssh(cfg, cmd, 180)
     info = {}
     for line in out.splitlines()[::-1]:
@@ -95,7 +95,7 @@ def vps_provision(cfg, name, ram_gb, cpu, disk_gb):
         if line.startswith("{"):
             try: info = json.loads(line); break
             except ValueError: pass
-    res = {"ip": info.get("ip") or cfg["host"], "port": info.get("port", 22), "password": info.get("password") or pw, "name": name, "sshx_url": ""}
+    res = {"ip": info.get("ip") or cfg["host"], "port": info.get("port") or port or 22, "password": info.get("password") or pw, "name": name, "sshx_url": ""}
     if cfg.get("mode") == "sshx":
         try:
             o = _ssh(cfg, cfg["sshx_cmd"].format(name=shlex.quote(name)), 40)
@@ -107,3 +107,19 @@ def vps_provision(cfg, name, ram_gb, cpu, disk_gb):
 def vps_power(cfg, name, action):
     if action not in ("start", "stop", "restart"): raise IntegrationError("bad action")
     _ssh(cfg, f"axion-vps {action} --name {shlex.quote(name)}", 60); return True
+
+
+# ---------------- Node IPs & ports ----------------
+import socket, ipaddress, time as _t
+def valid_ip(v):
+    try: ipaddress.ip_address(v.strip()); return True
+    except ValueError: return False
+
+def node_check(node):
+    """TCP-probe the node's public IP on its SSH port. Returns dict(ok, ms, error)."""
+    t = _t.time()
+    try:
+        with socket.create_connection((node["public_ip"], int(node["ssh_port"])), timeout=4): pass
+        return {"ok": True, "ms": int((_t.time() - t) * 1000), "error": ""}
+    except OSError as e:
+        return {"ok": False, "ms": 0, "error": (str(e) or e.__class__.__name__)[:120]}

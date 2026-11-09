@@ -205,6 +205,18 @@ class T(unittest.TestCase):
     def test_notifications(self):
         t = self.signup(); r = self.j("get", "/api/notifications", tok=t)[1]; self.assertTrue(r["items"]); self.assertGreater(self.j("get", "/api/me", tok=t)[1]["unread"], 0)
         self.j("post", "/api/notifications/read", tok=t); self.assertEqual(self.j("get", "/api/me", tok=t)[1]["unread"], 0)
+    def test_nodes_ip_ports(self):
+        node = {"name": "n1", "public_ip": "127.0.0.1", "ssh_port": 22, "port_start": 25000, "port_end": 25002}
+        c, r = self.j("put", "/api/admin/nodes", {"items": [dict(node, public_ip="999.1.1.1")]}, tok=self.adm); self.assertEqual(c, 400); self.assertIn("not a valid IP", r["error"])
+        c, r = self.j("put", "/api/admin/nodes", {"items": [dict(node, port_start=25005)]}, tok=self.adm); self.assertEqual(c, 400)
+        c, r = self.j("put", "/api/admin/nodes", {"items": [dict(node, port_start=20, port_end=30)]}, tok=self.adm); self.assertEqual(c, 400)
+        c, r = self.j("put", "/api/admin/nodes", {"items": [node]}, tok=self.adm); self.assertEqual(c, 200, r); self.assertEqual(r["items"][0]["free_ports"], 3)
+        n = db.load()["nodes"][0]; self.assertEqual([A.alloc_port(n)], [25000]); db.load()["nodes"][0]["reserved"] = [25000, 25001]; self.assertEqual(A.alloc_port(n), 25002)
+        db.load()["nodes"][0]["reserved"] = [25000, 25001, 25002]
+        with self.assertRaises(A.ig.IntegrationError): A.alloc_port(n)
+        db.load()["nodes"][0]["reserved"] = []
+        c, r = self.j("get", "/api/admin/nodes?check=1", tok=self.adm); self.assertEqual(c, 200); self.assertIn("ok", r["items"][0]["status"])
+        c, r = self.j("get", "/api/admin/nodes"); self.assertEqual(c, 401)
     def test_static_blocks_source(self):
         self.assertEqual(self.c.get("/backend/app.py").status_code, 404); self.assertEqual(self.c.get("/app.py").status_code, 404); self.assertEqual(self.c.get("/index.html").status_code, 200)
 if __name__ == "__main__": unittest.main()
