@@ -273,3 +273,7 @@ html,body{overflow-x:hidden;overflow-x:clip;max-width:100%;overscroll-behavior-x
 .ltoast.on{transform:none;opacity:1}.ltoast i{width:9px;height:9px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 0 #4ade80;animation:pl 1.6s infinite;flex:none}.ltoast span{color:#8fa3c4;font-size:11.5px}@keyframes pl{70%{box-shadow:0 0 0 9px transparent}}
 .stat b{display:inline-block;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
 @media(max-width:700px){.cfg{animation-duration:8s}.ltoast{bottom:78px}}
+/* hard stop for periodic mobile zoom-out: nothing may widen the layout viewport */
+html{width:100%;position:relative}body{position:relative;width:100%;min-width:0}#root{overflow-x:clip;max-width:100vw}
+.fhero,.fhero>*{max-width:100%}.lt,.aur,.floor,.sweep,.pbg,.bgfx{overflow:hidden;contain:paint}
+.fhero .lt,.fhero .aur,.fhero .floor{inset-inline:0}
