@@ -59,3 +59,10 @@ free-plan limits, renewals/suspension, templates (HTML-escaping), admin-only rou
 - **In-site panels** (`vps-panel.html`, `mc-panel.html`) are still demo data in the browser; the backend already exposes power/renew endpoints (`/api/services/<id>/power|renew`) — wire the rest of the tabs the same way.
 - Data is a JSON file (`backend/data/db.json`, chmod 600; contains SMTP/panel secrets). Use a proper DB + secrets manager for production, run behind HTTPS, and back it up.
 - Free plans attract abuse: keep email verification on, keep the per-IP limit, and add a captcha.
+
+
+## Install on a server (no public IPv4 / no systemd needed)
+```bash
+git clone https://github.com/devhub201/axionhost.git /opt/axionhost-site && bash /opt/axionhost-site/install.sh [CLOUDFLARE_TUNNEL_TOKEN]
+```
+Installs deps, creates the admin account, runs the site on 127.0.0.1:8081 with an auto-restart watchdog and (optionally) connects a Cloudflare Tunnel. Point the tunnel's Public Hostname to `HTTP -> 127.0.0.1:8081`. Re-running the script updates and restarts everything.
